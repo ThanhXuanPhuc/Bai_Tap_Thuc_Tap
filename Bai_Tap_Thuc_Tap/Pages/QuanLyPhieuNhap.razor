@@ -1,0 +1,126 @@
+﻿@page "/phieu-nhap"
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3>Quản Lý Phiếu Nhập Kho</h3>
+<hr />
+
+<button class="btn btn-primary mb-3" @onclick="ThemMoiPhieuNhap">
+    <i class="fas fa-plus"></i> Tạo Phiếu Nhập Mới
+</button>
+
+@if (danhSachPhieuNhap == null)
+{
+    <p><em>Đang tải dữ liệu...</em></p>
+}
+else
+{
+<table class="table table-bordered table-hover">
+    <thead class="thead-light">
+        <tr>
+            <th>Số Phiếu</th>
+            <th>Ngày Nhập</th>
+            <th>Kho Nhập</th>
+            <th>Nhà Cung Cấp</th>
+            <th>Ghi Chú</th>
+            @* SỬA Ở ĐÂY: Tăng độ rộng cột để chứa 3 nút *@
+            <th style="width: 220px;">Thao Tác</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var pn in danhSachPhieuNhap)
+        {
+            <tr>
+                <td>@pn.SoPhieuNhapKho</td>
+                <td>@pn.NgayNhapKho.ToString("dd/MM/yyyy")</td>
+                <td>@pn.Kho?.TenKho</td>
+                <td>@pn.NhaCungCap?.TenNCC</td>
+                <td>@pn.GhiChu</td>
+                <td>
+                    @* THÊM NÚT CHI TIẾT VÀO ĐÂY *@
+                    <button class="btn btn-sm btn-info" @onclick="() => SuaChiTiet(pn.Id)">Chi tiết</button>
+                    <button class="btn btn-sm btn-warning" @onclick="() => SuaPhieuNhap(pn.Id)">Sửa</button>
+                    <button class="btn btn-sm btn-danger" @onclick="() => XoaPhieuNhap(pn.Id)">Xóa</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+    <tbody>
+        @foreach (var pn in danhSachPhieuNhap)
+        {
+<tr>
+    <td>@pn.SoPhieuNhapKho</td>
+    <td>@pn.NgayNhapKho.ToString("dd/MM/yyyy")</td>
+    <td>@pn.Kho?.TenKho</td>
+    <td>@pn.NhaCungCap?.TenNCC</td>
+    <td>@pn.GhiChu</td>
+    <td>
+        @* THÊM NÚT IN VÀO ĐÂY *@
+        <button class="btn btn-sm btn-success" @onclick="() => InPhieu(pn.Id)">In</button>
+        <button class="btn btn-sm btn-info" @onclick="() => SuaChiTiet(pn.Id)">Chi tiết</button>
+        <button class="btn btn-sm btn-warning" @onclick="() => SuaPhieuNhap(pn.Id)">Sửa</button>
+        <button class="btn btn-sm btn-danger" @onclick="() => XoaPhieuNhap(pn.Id)">Xóa</button>
+    </td>
+</tr>}
+    </tbody>
+</table>
+}
+
+@code {
+    private List<NhapKho>? danhSachPhieuNhap;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await TaiDanhSach();
+    }
+
+    private async Task TaiDanhSach()
+    {
+        danhSachPhieuNhap = await DbContext.NhapKhos
+            .Include(p => p.Kho)
+            .Include(p => p.NhaCungCap)
+            .OrderByDescending(p => p.NgayNhapKho)
+            .ToListAsync();
+    }
+
+    private void ThemMoiPhieuNhap()
+    {
+        NavigationManager.NavigateTo("/them-phieu-nhap");
+    }
+
+    private void SuaPhieuNhap(int id)
+    {
+        NavigationManager.NavigateTo($"/sua-phieu-nhap/{id}");
+    }
+
+    private void SuaChiTiet(int id)
+    {
+        NavigationManager.NavigateTo($"/chi-tiet-phieu-nhap/{id}");
+    }
+
+    private async Task InPhieu(int id)
+    {
+        var url = $"/in-phieu-nhap/{id}";
+        await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    private async Task XoaPhieuNhap(int id)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn xóa phiếu nhập này? Mọi chi tiết liên quan cũng sẽ bị xóa.");
+        if (confirmed)
+        {
+            var phieuToDelete = await DbContext.NhapKhos.FindAsync(id);
+            if (phieuToDelete != null)
+            {
+                DbContext.NhapKhos.Remove(phieuToDelete);
+                await DbContext.SaveChangesAsync();
+                await TaiDanhSach();
+            }
+        }
+    }
+
+}

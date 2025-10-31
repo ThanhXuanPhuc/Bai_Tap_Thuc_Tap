@@ -1,0 +1,179 @@
+﻿@page "/nha-cung-cap"
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject IJSRuntime JSRuntime
+
+<h3>Danh Mục Nhà Cung Cấp</h3>
+<hr />
+
+<button class="btn btn-primary mb-3" @onclick="ShowAddModal">
+    <i class="fas fa-plus"></i> Thêm Mới
+</button>
+
+@if (danhSachNCC == null)
+{
+    <p><em>Đang tải dữ liệu...</em></p>
+}
+else
+{
+    <table class="table table-bordered table-hover">
+        <thead class="thead-light">
+            <tr>
+                <th>Mã NCC</th>
+                <th>Tên Nhà Cung Cấp</th>
+                <th>Ghi Chú</th>
+                <th style="width: 150px;">Thao Tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ncc in danhSachNCC)
+            {
+                <tr>
+                    <td>@ncc.MaNCC</td>
+                    <td>@ncc.TenNCC</td>
+                    <td>@ncc.GhiChu</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" @onclick="() => ShowEditModal(ncc)">Sửa</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => XoaNhaCungCap(ncc.Id)">Xóa</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showModal)
+{
+    <div class="modal fade show" tabindex="-1" style="display: block;">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <EditForm Model="@nccHienTai" OnValidSubmit="LuuThayDoi">
+                    <DataAnnotationsValidator />
+                    <div class="modal-header">
+                        <h5 class="modal-title">@(isEditing ? "Chỉnh Sửa NCC" : "Thêm Mới NCC")</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Mã Nhà Cung Cấp</label>
+                            <InputText class="form-control" @bind-Value="nccHienTai.MaNCC" disabled="@isEditing" />
+                            <ValidationMessage For="@(() => nccHienTai.MaNCC)" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tên Nhà Cung Cấp</label>
+                            <InputText class="form-control" @bind-Value="nccHienTai.TenNCC" />
+                            <ValidationMessage For="@(() => nccHienTai.TenNCC)" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ghi Chú</label>
+                            <InputTextArea class="form-control" @bind-Value="nccHienTai.GhiChu" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">Hủy</button>
+                        <button type="submit" class="btn btn-success">Lưu</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private List<NhaCungCap>? danhSachNCC;
+    private NhaCungCap nccHienTai = new();
+    private bool showModal = false;
+    private bool isEditing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await TaiDanhSach();
+    }
+
+    private async Task TaiDanhSach()
+    {
+        danhSachNCC = await DbContext.NhaCungCaps.OrderBy(p => p.MaNCC).ToListAsync();
+    }
+
+    private void ShowAddModal()
+    {
+        nccHienTai = new NhaCungCap();
+        isEditing = false;
+        showModal = true;
+    }
+
+    private void ShowEditModal(NhaCungCap nccToEdit)
+    {
+        nccHienTai = new NhaCungCap
+        {
+            Id = nccToEdit.Id,
+            MaNCC = nccToEdit.MaNCC,
+            TenNCC = nccToEdit.TenNCC,
+            GhiChu = nccToEdit.GhiChu
+        };
+        isEditing = true;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    private async Task LuuThayDoi()
+    {
+        // Kiểm tra trùng tên NCC
+        var tenDaTonTai = await DbContext.NhaCungCaps
+            .AnyAsync(p => p.TenNCC.ToLower() == nccHienTai.TenNCC.ToLower() && p.Id != nccHienTai.Id);
+        if (tenDaTonTai)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Lỗi: Tên nhà cung cấp này đã tồn tại!");
+            return;
+        }
+
+        if (isEditing)
+        {
+            var dbNCC = await DbContext.NhaCungCaps.FindAsync(nccHienTai.Id);
+            if (dbNCC != null)
+            {
+                dbNCC.TenNCC = nccHienTai.TenNCC;
+                dbNCC.GhiChu = nccHienTai.GhiChu;
+                DbContext.NhaCungCaps.Update(dbNCC);
+            }
+        }
+        else
+        {
+            // Kiểm tra trùng mã NCC
+            var maDaTonTai = await DbContext.NhaCungCaps
+                .AnyAsync(p => p.MaNCC.ToLower() == nccHienTai.MaNCC.ToLower());
+            if (maDaTonTai)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Lỗi: Mã nhà cung cấp này đã tồn tại!");
+                return;
+            }
+            await DbContext.NhaCungCaps.AddAsync(nccHienTai);
+        }
+
+        await DbContext.SaveChangesAsync();
+        CloseModal();
+        await TaiDanhSach();
+    }
+
+    private async Task XoaNhaCungCap(int id)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn xóa nhà cung cấp này không?");
+        if (confirmed)
+        {
+            var nccToDelete = await DbContext.NhaCungCaps.FindAsync(id);
+            if (nccToDelete != null)
+            {
+                DbContext.NhaCungCaps.Remove(nccToDelete);
+                await DbContext.SaveChangesAsync();
+                await TaiDanhSach();
+            }
+        }
+    }
+}

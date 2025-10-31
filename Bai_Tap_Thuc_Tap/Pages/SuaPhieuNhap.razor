@@ -1,0 +1,130 @@
+﻿@page "/sua-phieu-nhap/{Id:int}"
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3>Hiệu Chỉnh Thông Tin Phiếu Nhập</h3>
+
+@if (phieuNhap == null)
+{
+    <p><em>Đang tải thông tin phiếu nhập...</em></p>
+}
+else
+{
+    <EditForm Model="@phieuNhap" OnValidSubmit="LuuThayDoi">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="card">
+            <div class="card-header">Thông Tin Chung</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Số Phiếu Nhập</label>
+                        @* Số phiếu không được sửa, chỉ hiển thị *@
+                        <InputText class="form-control" @bind-Value="phieuNhap.SoPhieuNhapKho" disabled />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Ngày Nhập Kho</label>
+                        <InputDate class="form-control" @bind-Value="phieuNhap.NgayNhapKho" />
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Kho Nhập</label>
+                        <InputSelect class="form-control" @bind-Value="phieuNhap.KhoId">
+                            <option value="0">-- Chọn kho --</option>
+                            @if (danhSachKho != null)
+                                {
+                                @foreach (var k in danhSachKho)
+                                    {
+                                    <option value="@k.Id">@k.TenKho</option>
+                                    }
+                                }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Nhà Cung Cấp</label>
+                        <InputSelect class="form-control" @bind-Value="phieuNhap.NccId">
+                            <option value="0">-- Chọn NCC --</option>
+                            @if (danhSachNCC != null)
+                                {
+                                @foreach (var ncc in danhSachNCC)
+                                    {
+                                    <option value="@ncc.Id">@ncc.TenNCC</option>
+                                    }
+                                }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-8 mb-3">
+                        <label class="form-label">Ghi Chú</label>
+                        <InputText class="form-control" @bind-Value="phieuNhap.GhiChu" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-success">Lưu Thay Đổi</button>
+            <button type="button" class="btn btn-secondary" @onclick="HuyBo">Hủy</button>
+        </div>
+    </EditForm>
+}
+
+
+@code {
+    // Nhận tham số Id từ URL
+    [Parameter]
+    public int Id { get; set; }
+
+    private NhapKho? phieuNhap;
+    private List<Kho>? danhSachKho;
+    private List<NhaCungCap>? danhSachNCC;
+    private string soPhieuBanDau = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Tải các danh sách cần thiết cho dropdown
+        danhSachKho = await DbContext.Khos.ToListAsync();
+        danhSachNCC = await DbContext.NhaCungCaps.ToListAsync();
+
+        // Tải thông tin phiếu nhập cần sửa
+        phieuNhap = await DbContext.NhapKhos.FindAsync(Id);
+
+        if (phieuNhap != null)
+        {
+            // Lưu lại số phiếu ban đầu để kiểm tra nếu người dùng thay đổi
+            soPhieuBanDau = phieuNhap.SoPhieuNhapKho;
+        }
+    }
+
+    private async Task LuuThayDoi()
+    {
+        if (phieuNhap == null) return;
+
+        // Ràng buộc: Kiểm tra trùng số phiếu NẾU nó đã bị thay đổi
+        if (phieuNhap.SoPhieuNhapKho != soPhieuBanDau)
+        {
+            var daTonTai = await DbContext.NhapKhos
+                .AnyAsync(p => p.SoPhieuNhapKho == phieuNhap.SoPhieuNhapKho && p.Id != phieuNhap.Id);
+            if (daTonTai)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Lỗi: Số phiếu nhập này đã tồn tại!");
+                return;
+            }
+        }
+
+        // Cập nhật vào DbContext
+        DbContext.NhapKhos.Update(phieuNhap);
+        await DbContext.SaveChangesAsync();
+
+        // Quay về trang danh sách
+        NavigationManager.NavigateTo("/phieu-nhap");
+    }
+
+    private void HuyBo()
+    {
+        NavigationManager.NavigateTo("/phieu-nhap");
+    }
+}

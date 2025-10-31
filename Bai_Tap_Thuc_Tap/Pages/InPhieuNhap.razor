@@ -1,0 +1,324 @@
+﻿@page "/in-phieu-nhap/{Id:int}"
+@layout PrintLayout
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject IJSRuntime JSRuntime
+
+<style>
+    /* CSS được tối ưu hóa để khớp với mẫu in */
+    body {
+        font-family: 'Times New Roman', Times, serif;
+        font-size: 12pt;
+        margin: 0;
+        padding: 20px;
+        background-color: #fff;
+    }
+
+    .print-container {
+        width: 100%;
+        max-width: 8.5in; /* Kích thước khổ A4 chiều rộng */
+        margin: auto;
+    }
+
+    p {
+        margin: 4px 0;
+    }
+
+    .header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 1px solid #000;
+        padding-bottom: 10px;
+    }
+
+    .header-main {
+        text-align: center;
+        margin: 15px 0;
+    }
+
+    .title {
+        font-size: 24pt;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .info-section p {
+        font-size: 11pt;
+    }
+
+    .product-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+
+        .product-table th, .product-table td {
+            border: 1px solid black;
+            padding: 5px;
+            vertical-align: middle;
+        }
+
+        .product-table thead {
+            font-weight: bold;
+            text-align: center;
+        }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .text-right {
+        text-align: right;
+    }
+
+    .font-weight-bold {
+        font-weight: bold;
+    }
+
+    .summary-section {
+        margin-top: 15px;
+    }
+
+    .footer-section {
+        margin-top: 30px;
+        display: flex;
+        justify-content: space-around;
+        text-align: center;
+    }
+
+    .signature-block {
+        font-weight: bold;
+    }
+
+        .signature-block p {
+            font-weight: normal;
+            font-style: italic;
+        }
+
+    /* Media query để ẩn các phần không cần thiết khi in */
+    @@media print {
+        body {
+            padding: 0;
+        }
+    }
+</style>
+
+@if (phieuNhap == null)
+{
+    <p><em>Đang tải dữ liệu để in...</em></p>
+}
+else
+{
+    <div class="print-container">
+        <div class="header-top">
+            <div>
+                <p><strong>Đơn Vị:</strong> .............................</p>
+                <p><strong>Bộ Phận:</strong> .............................</p>
+            </div>
+            <div class="text-center">
+                <p><strong>Mẫu Số: 01 - VT</strong></p>
+                <p>(Ban Hành Theo QĐ Số 15/2006/QĐ-BTC<br>Ngày 20/03/2006 Của Bộ Trưởng BTC)</p>
+            </div>
+        </div>
+
+        <div class="header-main">
+            <h1 class="title">PHIẾU NHẬP KHO</h1>
+            <p><em>Ngày @phieuNhap.NgayNhapKho.Day tháng @phieuNhap.NgayNhapKho.Month năm @phieuNhap.NgayNhapKho.Year</em></p>
+            <p>Số: @phieuNhap.SoPhieuNhapKho</p>
+        </div>
+
+        <div class="info-section">
+            <p><strong>Họ Tên Người Giao Hàng:</strong> @phieuNhap.NhaCungCap?.TenNCC</p>
+            <p><strong>Theo TK Số:</strong> ............................. Nợ: ............................. Có: .............................</p>
+            <p><strong>Nhập Tại Kho:</strong> @phieuNhap.Kho?.TenKho &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<strong>Địa Điểm:</strong> ...................................................</p>
+        </div>
+
+        <table class="product-table">
+            <thead>
+                <tr>
+                    <th rowspan="2">STT</th>
+                    <th rowspan="2">Tên nhãn hiệu, quy cách, phẩm chất,<br>vật tư, dụng cụ, sản phẩm, hàng hóa</th>
+                    <th rowspan="2">Mã Hàng</th>
+                    <th rowspan="2">Đơn Vị<br>Tính</th>
+                    <th colspan="2">Số Lượng</th>
+                    <th rowspan="2">Đơn Giá</th>
+                    <th rowspan="2">Thành Tiền</th>
+                </tr>
+                <tr>
+                    <th>Kiện</th>
+                    <th>Cái</th>
+                </tr>
+                <tr class="font-weight-bold">
+                    <td>A</td>
+                    <td>B</td>
+                    <td>C</td>
+                    <td>D</td>
+                    <td>1</td>
+                    <td>2</td>
+                    <td>3</td>
+                    <td>4</td>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < phieuNhap.ChiTietPhieuNhap.Count; i++)
+                {
+                    var item = phieuNhap.ChiTietPhieuNhap.ElementAt(i);
+                    <tr>
+                        <td class="text-center">@(i + 1)</td>
+                        <td>@item.SanPham?.TenSanPham</td>
+                        <td class="text-center">@item.SanPham?.MaSanPham</td>
+                        <td class="text-center">@item.SanPham?.DonViTinh?.TenDonViTinh</td>
+                        <td class="text-right">@item.SoLuongNhap.ToString("N0")</td>
+                        <td></td>
+                        <td class="text-right">@item.DonGiaNhap.ToString("N0")</td>
+                        <td class="text-right">@((item.SoLuongNhap * item.DonGiaNhap).ToString("N0"))</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr class="font-weight-bold">
+                    <td colspan="4" class="text-center">Tổng Cộng</td>
+                    <td class="text-right">@phieuNhap.ChiTietPhieuNhap.Sum(i => i.SoLuongNhap).ToString("N0")</td>
+                    <td></td>
+                    <td></td>
+                    <td class="text-right">@phieuNhap.ChiTietPhieuNhap.Sum(i => i.SoLuongNhap * i.DonGiaNhap).ToString("N0")</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="summary-section">
+            <p><strong>Tổng Số Tiền (Viết bằng chữ):</strong> @TienBangChu(phieuNhap.ChiTietPhieuNhap.Sum(i => i.SoLuongNhap * i.DonGiaNhap))</p>
+            <p><strong>Số Chứng Từ Gốc Kèm Theo:</strong> ............................................................................</p>
+        </div>
+
+        <p class="text-right"><em>Ngày ..... tháng ..... năm .....</em></p>
+
+        <div class="footer-section">
+            <div class="signature-block">
+                <span>Người Lập Phiếu</span>
+                <p>(Ký, họ tên)</p>
+            </div>
+            <div class="signature-block">
+                <span>Người Giao Hàng</span>
+                <p>(Ký, họ tên)</p>
+            </div>
+            <div class="signature-block">
+                <span>Thủ Kho</span>
+                <p>(Ký, họ tên)</p>
+            </div>
+            <div class="signature-block">
+                <span>Kế Toán Trưởng</span>
+                <p>(Ký, họ tên)</p>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private NhapKho? phieuNhap;
+
+    protected override async Task OnInitializedAsync()
+    {
+        phieuNhap = await DbContext.NhapKhos
+            .Include(p => p.Kho)
+            .Include(p => p.NhaCungCap)
+            .Include(p => p.ChiTietPhieuNhap)
+                .ThenInclude(d => d.SanPham)
+                    .ThenInclude(sp => sp.DonViTinh)
+            .FirstOrDefaultAsync(p => p.Id == Id);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && phieuNhap != null)
+        {
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+    }
+
+    #region Hàm Chuyển Số Thành Chữ (Đã Sửa Lỗi)
+    private string TienBangChu(decimal total)
+    {
+        try
+        {
+            long number = (long)Math.Abs(total);
+            if (number == 0) return "Không đồng";
+
+            string[] so = { "không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín" };
+            string[] hang = { "", "nghìn", "triệu", "tỷ" };
+            string result = "";
+
+            int i = 0;
+            while (number > 0)
+            {
+                string group = "";
+                int soNhom = (int)(number % 1000);
+                number /= 1000;
+
+                if (soNhom > 0)
+                {
+                    int tram = soNhom / 100;
+                    int chuc = (soNhom % 100) / 10;
+                    int donvi = soNhom % 10;
+
+                    group = so[tram] + " trăm";
+
+                    if (chuc > 1)
+                    {
+                        group += " " + so[chuc] + " mươi";
+                    }
+                    else if (chuc == 1)
+                    {
+                        group += " mười";
+                    }
+                    else if (chuc == 0 && donvi > 0 && tram > 0)
+                    {
+                        group += " linh";
+                    }
+
+                    if (donvi > 0)
+                    {
+                        if (donvi == 1 && chuc > 1)
+                        {
+                            group += " mốt";
+                        }
+                        else if (donvi == 5 && chuc > 0)
+                        {
+                            group += " lăm";
+                        }
+                        else
+                        {
+                            group += " " + so[donvi];
+                        }
+                    }
+
+                    // Xóa "không trăm" ở đầu nếu không cần thiết
+                    if (group.StartsWith("không trăm "))
+                    {
+                        group = group.Substring(11);
+                    }
+
+                    result = group.Trim() + " " + hang[i] + " " + result;
+                }
+                i++;
+            }
+
+            // Dọn dẹp chuỗi và viết hoa chữ cái đầu
+            result = result.Trim();
+            if (string.IsNullOrEmpty(result)) return "Không đồng";
+
+            return char.ToUpper(result[0]) + result.Substring(1) + " đồng chẵn.";
+        }
+        catch
+        {
+            return "Không đồng.";
+        }
+    }
+    #endregion
+}

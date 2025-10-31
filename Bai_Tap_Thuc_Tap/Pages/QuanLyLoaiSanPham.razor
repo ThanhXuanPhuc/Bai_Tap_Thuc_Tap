@@ -1,0 +1,181 @@
+﻿@page "/loai-san-pham"
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject IJSRuntime JSRuntime
+
+<h3>Danh Mục Loại Sản Phẩm</h3>
+<hr />
+
+<button class="btn btn-primary mb-3" @onclick="ShowAddModal">
+    <i class="fas fa-plus"></i> Thêm Mới
+</button>
+
+@if (danhSachLSP == null)
+{
+    <p><em>Đang tải dữ liệu...</em></p>
+}
+else
+{
+    <table class="table table-bordered table-hover">
+        <thead class="thead-light">
+            <tr>
+                <th>Mã Loại SP</th>
+                <th>Tên Loại SP</th>
+                <th>Ghi Chú</th>
+                <th style="width: 150px;">Thao Tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var lsp in danhSachLSP)
+            {
+                <tr>
+                    <td>@lsp.MaLSP</td>
+                    <td>@lsp.TenLSP</td>
+                    <td>@lsp.GhiChu</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" @onclick="() => ShowEditModal(lsp)">Sửa</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => XoaLoaiSanPham(lsp.Id)">Xóa</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showModal)
+{
+    <div class="modal fade show" tabindex="-1" style="display: block;">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <EditForm Model="@lspHienTai" OnValidSubmit="LuuThayDoi">
+                    <DataAnnotationsValidator />
+                    <div class="modal-header">
+                        <h5 class="modal-title">@(isEditing ? "Chỉnh Sửa Loại SP" : "Thêm Mới Loại SP")</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Mã Loại SP</label>
+                            <InputText class="form-control" @bind-Value="lspHienTai.MaLSP" disabled="@isEditing" />
+                            <ValidationMessage For="@(() => lspHienTai.MaLSP)" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tên Loại SP</label>
+                            <InputText class="form-control" @bind-Value="lspHienTai.TenLSP" />
+                            <ValidationMessage For="@(() => lspHienTai.TenLSP)" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ghi Chú</label>
+                            <InputTextArea class="form-control" @bind-Value="lspHienTai.GhiChu" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">Hủy</button>
+                        <button type="submit" class="btn btn-success">Lưu</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private List<LoaiSanPham>? danhSachLSP;
+    private LoaiSanPham lspHienTai = new();
+    private bool showModal = false;
+    private bool isEditing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await TaiDanhSach();
+    }
+
+    private async Task TaiDanhSach()
+    {
+        danhSachLSP = await DbContext.LoaiSanPhams.OrderBy(p => p.MaLSP).ToListAsync();
+    }
+
+    private void ShowAddModal()
+    {
+        lspHienTai = new LoaiSanPham();
+        isEditing = false;
+        showModal = true;
+    }
+
+    private void ShowEditModal(LoaiSanPham lspToEdit)
+    {
+        // Tạo bản sao để tránh sửa trực tiếp trên danh sách
+        lspHienTai = new LoaiSanPham
+        {
+            Id = lspToEdit.Id,
+            MaLSP = lspToEdit.MaLSP,
+            TenLSP = lspToEdit.TenLSP,
+            GhiChu = lspToEdit.GhiChu
+        };
+        isEditing = true;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    private async Task LuuThayDoi()
+    {
+        // Kiểm tra trùng tên loại sản phẩm
+        var tenDaTonTai = await DbContext.LoaiSanPhams
+            .AnyAsync(p => p.TenLSP.ToLower() == lspHienTai.TenLSP.ToLower() && p.Id != lspHienTai.Id);
+        if (tenDaTonTai)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Lỗi: Tên loại sản phẩm này đã tồn tại!");
+            return;
+        }
+
+        if (isEditing)
+        {
+            // Cập nhật
+            var dbLSP = await DbContext.LoaiSanPhams.FindAsync(lspHienTai.Id);
+            if (dbLSP != null)
+            {
+                dbLSP.TenLSP = lspHienTai.TenLSP;
+                dbLSP.GhiChu = lspHienTai.GhiChu;
+                DbContext.LoaiSanPhams.Update(dbLSP);
+            }
+        }
+        else
+        {
+            // Thêm mới - Kiểm tra trùng mã loại sản phẩm
+            var maDaTonTai = await DbContext.LoaiSanPhams
+                .AnyAsync(p => p.MaLSP.ToLower() == lspHienTai.MaLSP.ToLower());
+            if (maDaTonTai)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Lỗi: Mã loại sản phẩm này đã tồn tại!");
+                return;
+            }
+            await DbContext.LoaiSanPhams.AddAsync(lspHienTai);
+        }
+
+        await DbContext.SaveChangesAsync();
+        CloseModal();
+        await TaiDanhSach();
+    }
+
+    private async Task XoaLoaiSanPham(int id)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn xóa loại sản phẩm này không?");
+        if (confirmed)
+        {
+            var lspToDelete = await DbContext.LoaiSanPhams.FindAsync(id);
+            if (lspToDelete != null)
+            {
+                DbContext.LoaiSanPhams.Remove(lspToDelete);
+                await DbContext.SaveChangesAsync();
+                await TaiDanhSach();
+            }
+        }
+    }
+}

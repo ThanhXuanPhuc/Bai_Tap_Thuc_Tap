@@ -1,0 +1,172 @@
+﻿@page "/phan-quyen-kho"
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject IJSRuntime JSRuntime
+
+<h3>Phân Quyền Kho Cho Người Dùng</h3>
+<hr />
+
+@if (danhSachUser == null)
+{
+    <p><em>Đang tải danh sách người dùng...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <label class="form-label">Chọn người dùng:</label>
+            <select class="form-control" @onchange="OnUserSelected">
+                <option value="">-- Chọn người dùng --</option>
+                @foreach (var user in danhSachUser)
+                {
+                    <option value="@user.MaDangNhap">@user.HoTen (@user.MaDangNhap)</option>
+                }
+            </select>
+        </div>
+    </div>
+    <hr />
+
+    @if (!string.IsNullOrEmpty(selectedUserMaDangNhap))
+    {
+        <div class="row mt-3">
+            <div class="col-5">
+                <h5>Kho chưa gán</h5>
+                <select class="form-control" multiple size="10" @onchange="OnChuaGanSelectionChanged">
+                    @foreach (var kho in khoChuaGan)
+                    {
+                        <option value="@kho.Id">@kho.TenKho</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-2 d-flex flex-column justify-content-center align-items-center">
+                <button class="btn btn-primary mb-2" @onclick="GanQuyen">&gt;&gt;</button>
+                <button class="btn btn-danger" @onclick="GoQuyen">&lt;&lt;</button>
+            </div>
+
+            <div class="col-5">
+                <h5>Kho đã gán</h5>
+                <select class="form-control" multiple size="10" @onchange="OnDaGanSelectionChanged">
+                    @foreach (var kho in khoDaGan)
+                    {
+                        <option value="@kho.Id">@kho.TenKho</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col text-center">
+                <button class="btn btn-success" @onclick="LuuThayDoi">Lưu Thay Đổi</button>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<User>? danhSachUser;
+    private List<Kho>? danhSachTatCaKho;
+
+    private string selectedUserMaDangNhap = string.Empty;
+    private List<Kho> khoChuaGan = new();
+    private List<Kho> khoDaGan = new();
+
+    private string[] selectedChuaGanIds = Array.Empty<string>();
+    private string[] selectedDaGanIds = Array.Empty<string>();
+
+    private void OnChuaGanSelectionChanged(ChangeEventArgs e)
+    {
+        if (e.Value is string[] values)
+        {
+            selectedChuaGanIds = values;
+        }
+        else if (e.Value is string value)
+        {
+            selectedChuaGanIds = new string[] { value };
+        }
+        else
+        {
+            selectedChuaGanIds = Array.Empty<string>();
+        }
+    }
+
+    private void OnDaGanSelectionChanged(ChangeEventArgs e)
+    {
+        if (e.Value is string[] values)
+        {
+            selectedDaGanIds = values;
+        }
+        else if (e.Value is string value)
+        {
+            selectedDaGanIds = new string[] { value };
+        }
+        else
+        {
+            selectedDaGanIds = Array.Empty<string>();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        danhSachUser = await DbContext.Users.OrderBy(u => u.HoTen).ToListAsync();
+        danhSachTatCaKho = await DbContext.Khos.OrderBy(k => k.TenKho).ToListAsync();
+    }
+
+    private async Task OnUserSelected(ChangeEventArgs e)
+    {
+        selectedUserMaDangNhap = e.Value.ToString();
+        if (string.IsNullOrEmpty(selectedUserMaDangNhap))
+        {
+            khoChuaGan.Clear();
+            khoDaGan.Clear();
+            return;
+        }
+
+        var idsDaGan = await DbContext.KhoUsers
+            .Where(ku => ku.MaDangNhap == selectedUserMaDangNhap)
+            .Select(ku => ku.KhoId)
+            .ToListAsync();
+
+        khoDaGan = danhSachTatCaKho.Where(k => idsDaGan.Contains(k.Id)).ToList();
+        khoChuaGan = danhSachTatCaKho.Except(khoDaGan).ToList();
+    }
+
+    private void GanQuyen()
+    {
+        if (selectedChuaGanIds.Length == 0) return;
+        var idsToMove = selectedChuaGanIds.Select(int.Parse).ToList();
+        var khoToMove = khoChuaGan.Where(k => idsToMove.Contains(k.Id)).ToList();
+
+        khoDaGan.AddRange(khoToMove);
+        khoChuaGan.RemoveAll(k => idsToMove.Contains(k.Id));
+        selectedChuaGanIds = Array.Empty<string>(); // Reset lựa chọn
+    }
+
+    private void GoQuyen()
+    {
+        if (selectedDaGanIds.Length == 0) return;
+        var idsToMove = selectedDaGanIds.Select(int.Parse).ToList();
+        var khoToMove = khoDaGan.Where(k => idsToMove.Contains(k.Id)).ToList();
+
+        khoChuaGan.AddRange(khoToMove);
+        khoDaGan.RemoveAll(k => idsToMove.Contains(k.Id));
+        selectedDaGanIds = Array.Empty<string>(); 
+    }
+
+    private async Task LuuThayDoi()
+    {
+        if (string.IsNullOrEmpty(selectedUserMaDangNhap)) return;
+
+        var quyenHienTai = await DbContext.KhoUsers
+            .Where(ku => ku.MaDangNhap == selectedUserMaDangNhap)
+            .ToListAsync();
+        DbContext.KhoUsers.RemoveRange(quyenHienTai);
+
+        var newPermissions = khoDaGan.Select(kho => new KhoUser { MaDangNhap = selectedUserMaDangNhap, KhoId = kho.Id });
+        await DbContext.KhoUsers.AddRangeAsync(newPermissions);
+
+        await DbContext.SaveChangesAsync();
+        await JSRuntime.InvokeVoidAsync("alert", "Cập nhật phân quyền thành công!");
+    }
+}

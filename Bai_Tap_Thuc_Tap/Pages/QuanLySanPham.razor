@@ -1,0 +1,239 @@
+﻿@page "/san-pham"
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject IJSRuntime JSRuntime
+
+<h3>Danh Mục Sản Phẩm</h3>
+<hr />
+
+<button class="btn btn-primary mb-3" @onclick="ShowAddModal">
+    <i class="fas fa-plus"></i> Thêm Mới
+</button>
+
+@if (danhSachSP == null)
+{
+    <p><em>Đang tải dữ liệu...</em></p>
+}
+else
+{
+    <table class="table table-bordered table-hover">
+        <thead class="thead-light">
+            <tr>
+                <th>Mã SP</th>
+                <th>Tên Sản Phẩm</th>
+                <th>Loại Sản Phẩm</th>
+                <th>Đơn Vị Tính</th>
+                <th>Ghi Chú</th>
+                <th style="width: 150px;">Thao Tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var sp in danhSachSP)
+            {
+                <tr>
+                    <td>@sp.MaSanPham</td>
+                    <td>@sp.TenSanPham</td>
+                    <td>@sp.LoaiSanPham?.TenLSP</td>
+                    <td>@sp.DonViTinh?.TenDonViTinh</td>
+                    <td>@sp.GhiChu</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" @onclick="() => ShowEditModal(sp)">Sửa</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => XoaSanPham(sp.Id)">Xóa</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showModal)
+{
+    <div class="modal fade show" tabindex="-1" style="display: block;">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <EditForm Model="@spHienTai" OnValidSubmit="LuuThayDoi">
+                    <DataAnnotationsValidator />
+                    <div class="modal-header">
+                        <h5 class="modal-title">@(isEditing ? "Chỉnh Sửa Sản Phẩm" : "Thêm Mới Sản Phẩm")</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Mã Sản Phẩm</label>
+                                <InputText class="form-control" @bind-Value="spHienTai.MaSanPham" disabled="@isEditing" />
+                                <ValidationMessage For="@(() => spHienTai.MaSanPham)" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Tên Sản Phẩm</label>
+                                <InputText class="form-control" @bind-Value="spHienTai.TenSanPham" />
+                                <ValidationMessage For="@(() => spHienTai.TenSanPham)" />
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Loại Sản Phẩm</label>
+                                <InputSelect class="form-control" @bind-Value="spHienTai.LoaiSanPhamId">
+                                    <option value="0">-- Chọn loại sản phẩm --</option>
+                                    @if (danhSachLSP != null)
+                                        {
+                                        @foreach (var lsp in danhSachLSP)
+                                            {
+                                            <option value="@lsp.Id">@lsp.TenLSP</option>
+                                            }
+                                        }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => spHienTai.LoaiSanPhamId)" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Đơn Vị Tính</label>
+                                <InputSelect class="form-control" @bind-Value="spHienTai.DonViTinhId">
+                                    <option value="0">-- Chọn đơn vị tính --</option>
+                                    @if (danhSachDVT != null)
+                                        {
+                                        @foreach (var dvt in danhSachDVT)
+                                            {
+                                            <option value="@dvt.Id">@dvt.TenDonViTinh</option>
+                                            }
+                                        }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => spHienTai.DonViTinhId)" />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ghi Chú</label>
+                            <InputTextArea class="form-control" @bind-Value="spHienTai.GhiChu" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">Hủy</button>
+                        <button type="submit" class="btn btn-success">Lưu</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+@code {
+    private List<SanPham>? danhSachSP;
+    private List<LoaiSanPham>? danhSachLSP;
+    private List<DonViTinh>? danhSachDVT;
+
+    private SanPham spHienTai = new();
+    private bool showModal = false;
+    private bool isEditing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await TaiDuLieuCanThiet();
+    }
+
+    // SỬA LẠI HÀM NÀY
+    private async Task TaiDuLieuCanThiet()
+    {
+        // Tải tuần tự thay vì song song
+        await TaiDanhSachLoaiSanPham();
+        await TaiDanhSachDonViTinh();
+        await TaiDanhSachSanPham();
+    }
+
+    private async Task TaiDanhSachSanPham()
+    {
+        danhSachSP = await DbContext.SanPhams
+            .Include(p => p.LoaiSanPham)
+            .Include(p => p.DonViTinh)
+            .OrderBy(p => p.MaSanPham)
+            .ToListAsync();
+    }
+
+    private async Task TaiDanhSachLoaiSanPham()
+    {
+        danhSachLSP = await DbContext.LoaiSanPhams.OrderBy(p => p.TenLSP).ToListAsync();
+    }
+
+    private async Task TaiDanhSachDonViTinh()
+    {
+        danhSachDVT = await DbContext.DonViTinhs.OrderBy(p => p.TenDonViTinh).ToListAsync();
+    }
+
+    // --- Các hàm còn lại giữ nguyên, không cần thay đổi ---
+    private void ShowAddModal()
+    {
+        spHienTai = new SanPham();
+        isEditing = false;
+        showModal = true;
+    }
+
+    private void ShowEditModal(SanPham spToEdit)
+    {
+        spHienTai = new SanPham
+        {
+            Id = spToEdit.Id,
+            MaSanPham = spToEdit.MaSanPham,
+            TenSanPham = spToEdit.TenSanPham,
+            LoaiSanPhamId = spToEdit.LoaiSanPhamId,
+            DonViTinhId = spToEdit.DonViTinhId,
+            GhiChu = spToEdit.GhiChu
+        };
+        isEditing = true;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    private async Task LuuThayDoi()
+    {
+        if (isEditing)
+        {
+            var dbSP = await DbContext.SanPhams.FindAsync(spHienTai.Id);
+            if (dbSP != null)
+            {
+                dbSP.TenSanPham = spHienTai.TenSanPham;
+                dbSP.LoaiSanPhamId = spHienTai.LoaiSanPhamId;
+                dbSP.DonViTinhId = spHienTai.DonViTinhId;
+                dbSP.GhiChu = spHienTai.GhiChu;
+                DbContext.SanPhams.Update(dbSP);
+            }
+        }
+        else
+        {
+            var maDaTonTai = await DbContext.SanPhams
+                .AnyAsync(p => p.MaSanPham.ToLower() == spHienTai.MaSanPham.ToLower());
+            if (maDaTonTai)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Lỗi: Mã sản phẩm này đã tồn tại!");
+                return;
+            }
+            await DbContext.SanPhams.AddAsync(spHienTai);
+        }
+
+        await DbContext.SaveChangesAsync();
+        CloseModal();
+        await TaiDanhSachSanPham();
+        StateHasChanged();
+    }
+
+    private async Task XoaSanPham(int id)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn xóa sản phẩm này không?");
+        if (confirmed)
+        {
+            var spToDelete = await DbContext.SanPhams.FindAsync(id);
+            if (spToDelete != null)
+            {
+                DbContext.SanPhams.Remove(spToDelete);
+                await DbContext.SaveChangesAsync();
+                await TaiDanhSachSanPham();
+                StateHasChanged();
+            }
+        }
+    }
+}

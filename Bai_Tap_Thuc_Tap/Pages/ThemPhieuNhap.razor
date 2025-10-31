@@ -1,0 +1,166 @@
+﻿@page "/them-phieu-nhap"
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3>Tạo Phiếu Nhập Kho Mới</h3>
+
+<EditForm Model="@phieuNhapMoi" OnValidSubmit="LuuPhieuNhap">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="card mb-3">
+        <div class="card-header">Thông Tin Chung</div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Số Phiếu Nhập</label>
+                    <InputText class="form-control" @bind-Value="phieuNhapMoi.SoPhieuNhapKho" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Ngày Nhập Kho</label>
+                    <InputDate class="form-control" @bind-Value="phieuNhapMoi.NgayNhapKho" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Kho Nhập</label>
+                    <InputSelect class="form-control" @bind-Value="phieuNhapMoi.KhoId">
+                        <option value="0">-- Chọn kho --</option>
+                        @if (danhSachKho != null)
+                        {
+                            @foreach (var k in danhSachKho)
+                            {<option value="@k.Id">@k.TenKho</option>}
+                        }
+                    </InputSelect>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Nhà Cung Cấp</label>
+                    <InputSelect class="form-control" @bind-Value="phieuNhapMoi.NccId">
+                        <option value="0">-- Chọn NCC --</option>
+                        @if (danhSachNCC != null)
+                        {
+                            @foreach (var ncc in danhSachNCC)
+                            {<option value="@ncc.Id">@ncc.TenNCC</option>}
+                        }
+                    </InputSelect>
+                </div>
+                <div class="col-md-8 mb-3">
+                    <label class="form-label">Ghi Chú</label>
+                    <InputText class="form-control" @bind-Value="phieuNhapMoi.GhiChu" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">Chi Tiết Sản Phẩm</div>
+        <div class="card-body">
+            <div class="row align-items-end border p-2 mb-3">
+                <div class="col-md-4">
+                    <label>Sản phẩm</label>
+                    <InputSelect class="form-control" @bind-Value="dongChiTietMoi.SanPhamId">
+                        <option value="0">-- Chọn sản phẩm --</option>
+                        @if (danhSachSanPham != null)
+                        {
+                            @foreach (var sp in danhSachSanPham)
+                            {<option value="@sp.Id">@sp.TenSanPham</option>}
+                        }
+                    </InputSelect>
+                </div>
+                <div class="col-md-3">
+                    <label>Số lượng</label>
+                    <InputNumber class="form-control" @bind-Value="dongChiTietMoi.SoLuongNhap" />
+                </div>
+                <div class="col-md-3">
+                    <label>Đơn giá</label>
+                    <InputNumber class="form-control" @bind-Value="dongChiTietMoi.DonGiaNhap" />
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-info w-100" @onclick="ThemDongChiTiet">Thêm</button>
+                </div>
+            </div>
+
+            <table class="table table-sm">
+                <thead><tr><th>Sản Phẩm</th><th>Số Lượng</th><th>Đơn Giá</th><th>Thành Tiền</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var item in chiTietPhieuNhap)
+                    {
+                        <tr>
+                            <td>@danhSachSanPham.FirstOrDefault(sp => sp.Id == item.SanPhamId)?.TenSanPham</td>
+                            <td>@item.SoLuongNhap</td>
+                            <td>@item.DonGiaNhap.ToString("N0")</td>
+                            <td>@((item.SoLuongNhap * item.DonGiaNhap).ToString("N0"))</td>
+                            <td><button type="button" class="btn btn-sm btn-danger" @onclick="() => XoaDongChiTiet(item)">Xóa</button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <button type="submit" class="btn btn-success">Lưu Phiếu Nhập</button>
+        <button type="button" class="btn btn-secondary" @onclick="@(() => NavigationManager.NavigateTo("/phieu-nhap"))">Hủy</button>
+    </div>
+</EditForm>
+
+
+@code {
+    private NhapKho phieuNhapMoi = new();
+    private NhapKhoRawData dongChiTietMoi = new();
+    private List<NhapKhoRawData> chiTietPhieuNhap = new();
+
+    private List<Kho>? danhSachKho;
+    private List<NhaCungCap>? danhSachNCC;
+    private List<SanPham>? danhSachSanPham;
+
+    protected override async Task OnInitializedAsync()
+    {
+        danhSachKho = await DbContext.Khos.ToListAsync();
+        danhSachNCC = await DbContext.NhaCungCaps.ToListAsync();
+        danhSachSanPham = await DbContext.SanPhams.ToListAsync();
+    }
+
+    private void ThemDongChiTiet()
+    {
+        if (dongChiTietMoi.SanPhamId == 0 || dongChiTietMoi.SoLuongNhap <= 0)
+        {
+            JSRuntime.InvokeVoidAsync("alert", "Vui lòng chọn sản phẩm và nhập số lượng lớn hơn 0.");
+            return;
+        }
+        chiTietPhieuNhap.Add(dongChiTietMoi);
+        dongChiTietMoi = new(); // Reset form thêm dòng
+    }
+
+    private void XoaDongChiTiet(NhapKhoRawData item)
+    {
+        chiTietPhieuNhap.Remove(item);
+    }
+
+    private async Task LuuPhieuNhap()
+    {
+        // Kiểm tra ràng buộc
+        var daTonTai = await DbContext.NhapKhos.AnyAsync(p => p.SoPhieuNhapKho == phieuNhapMoi.SoPhieuNhapKho);
+        if (daTonTai)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Lỗi: Số phiếu nhập đã tồn tại!");
+            return;
+        }
+        if (chiTietPhieuNhap.Count == 0)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Lỗi: Phiếu nhập phải có ít nhất một sản phẩm!");
+            return;
+        }
+
+        // Gán danh sách chi tiết vào phiếu nhập
+        phieuNhapMoi.ChiTietPhieuNhap = chiTietPhieuNhap;
+
+        // Lưu vào database
+        DbContext.NhapKhos.Add(phieuNhapMoi);
+        await DbContext.SaveChangesAsync();
+
+        NavigationManager.NavigateTo("/phieu-nhap");
+    }
+}

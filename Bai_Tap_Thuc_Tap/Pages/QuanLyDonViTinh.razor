@@ -1,0 +1,169 @@
+﻿@page "/don-vi-tinh"
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore;
+@inject ApplicationDbContext DbContext
+@inject IJSRuntime JSRuntime
+
+
+<h3>Danh Mục Đơn Vị Tính</h3>
+<hr />
+
+<button class="btn btn-primary mb-3" @onclick="ShowAddModal">
+    <i class="fas fa-plus"></i> Thêm Mới
+</button>
+
+@if (danhSachDonViTinh == null)
+{
+    <p><em>Đang tải dữ liệu...</em></p>
+}
+else
+{
+    <table class="table table-bordered table-hover">
+        <thead class="thead-light">
+            <tr>
+                <th>Tên Đơn Vị Tính</th>
+                <th>Ghi Chú</th>
+                <th style="width: 150px;">Thao Tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var dvt in danhSachDonViTinh)
+            {
+                <tr>
+                    <td>@dvt.TenDonViTinh</td>
+                    <td>@dvt.GhiChu</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" @onclick="() => ShowEditModal(dvt)">Sửa</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => XoaDonViTinh(dvt.Id)">Xóa</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showModal)
+{
+    <div class="modal fade show" tabindex="-1" style="display: block;">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <EditForm Model="@donViTinhHienTai" OnValidSubmit="LuuThayDoi">
+                    <DataAnnotationsValidator />
+                    <div class="modal-header">
+                        <h5 class="modal-title">@(isEditing ? "Chỉnh Sửa Đơn Vị Tính" : "Thêm Mới Đơn Vị Tính")</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Tên Đơn Vị Tính</label>
+                            <InputText class="form-control" @bind-Value="donViTinhHienTai.TenDonViTinh" />
+                            <ValidationMessage For="@(() => donViTinhHienTai.TenDonViTinh)" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ghi Chú</label>
+                            <InputTextArea class="form-control" @bind-Value="donViTinhHienTai.GhiChu" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">Hủy</button>
+                        <button type="submit" class="btn btn-success">Lưu</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+@code {
+    private List<DonViTinh>? danhSachDonViTinh;
+    private DonViTinh donViTinhHienTai = new();
+    private bool showModal = false;
+    private bool isEditing = false;
+    private string errorMessage = string.Empty;
+
+    // Hàm được gọi đầu tiên khi trang được tải
+    protected override async Task OnInitializedAsync()
+    {
+        await TaiDanhSach();
+    }
+
+    // Tải danh sách từ Database
+    private async Task TaiDanhSach()
+    {
+        danhSachDonViTinh = await DbContext.DonViTinhs.OrderBy(d => d.TenDonViTinh).ToListAsync();
+    }
+
+    private void ShowAddModal()
+    {
+        donViTinhHienTai = new DonViTinh();
+        isEditing = false;
+        showModal = true;
+    }
+
+    private void ShowEditModal(DonViTinh dvtToEdit)
+    {
+        // Tạo một bản sao để tránh chỉnh sửa trực tiếp trên danh sách
+        donViTinhHienTai = new DonViTinh { Id = dvtToEdit.Id, TenDonViTinh = dvtToEdit.TenDonViTinh, GhiChu = dvtToEdit.GhiChu };
+        isEditing = true;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    // Hàm xử lý khi nhấn nút Lưu (bao gồm cả Thêm và Sửa)
+    private async Task LuuThayDoi()
+    {
+        if (isEditing)
+        {
+            // Cập nhật
+            var dbDonViTinh = await DbContext.DonViTinhs.FindAsync(donViTinhHienTai.Id);
+            if (dbDonViTinh != null)
+            {
+                dbDonViTinh.TenDonViTinh = donViTinhHienTai.TenDonViTinh;
+                dbDonViTinh.GhiChu = donViTinhHienTai.GhiChu;
+                DbContext.DonViTinhs.Update(dbDonViTinh);
+            }
+        }
+        else
+        {
+            // Thêm mới
+            // **Kiểm tra ràng buộc Tên là duy nhất**
+            var daTonTai = await DbContext.DonViTinhs
+                .AnyAsync(d => d.TenDonViTinh.ToLower() == donViTinhHienTai.TenDonViTinh.ToLower());
+
+            if (daTonTai)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Lỗi: Tên đơn vị tính này đã tồn tại!");
+                return;
+            }
+            await DbContext.DonViTinhs.AddAsync(donViTinhHienTai);
+        }
+
+        await DbContext.SaveChangesAsync();
+        CloseModal();
+        await TaiDanhSach(); // Tải lại danh sách mới
+    }
+
+    // Hàm xử lý Xóa
+    private async Task XoaDonViTinh(int id)
+    {
+        // Thêm hộp thoại xác nhận để an toàn hơn
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn xóa đơn vị tính này không?");
+        if (confirmed)
+        {
+            var dvtToDelete = await DbContext.DonViTinhs.FindAsync(id);
+            if (dvtToDelete != null)
+            {
+                DbContext.DonViTinhs.Remove(dvtToDelete);
+                await DbContext.SaveChangesAsync();
+                await TaiDanhSach(); // Tải lại danh sách
+            }
+        }
+    }
+}
