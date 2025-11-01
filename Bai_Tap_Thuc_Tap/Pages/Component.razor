@@ -1,0 +1,156 @@
+﻿@page "/them-phieu-xuat"
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3>Tạo Phiếu Xuất Kho Mới</h3>
+
+<EditForm Model="@phieuXuatMoi" OnValidSubmit="LuuPhieuXuat">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="card mb-3">
+        <div class="card-header">Thông Tin Chung</div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Số Phiếu Xuất</label>
+                    <InputText class="form-control" @bind-Value="phieuXuatMoi.SoPhieuXuatKho" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Ngày Xuất Kho</label>
+                    <InputDate class="form-control" @bind-Value="phieuXuatMoi.NgayXuatKho" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Kho Xuất</label>
+                    <InputSelect class="form-control" @bind-Value="phieuXuatMoi.KhoId">
+                        <option value="0">-- Chọn kho --</option>
+                        @if (danhSachKho != null)
+                        {
+                            @foreach (var k in danhSachKho)
+                            {<option value="@k.Id">@k.TenKho</option>}
+                        }
+                    </InputSelect>
+                </div>
+                <div class="col-md-8 mb-3">
+                    <label class="form-label">Ghi Chú</label>
+                    <InputText class="form-control" @bind-Value="phieuXuatMoi.GhiChu" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">Chi Tiết Sản Phẩm</div>
+        <div class="card-body">
+            <div class="row align-items-end border p-2 mb-3">
+                <div class="col-md-4">
+                    <label>Sản phẩm</label>
+                    <InputSelect class="form-control" @bind-Value="dongChiTietMoi.SanPhamId">
+                        <option value="0">-- Chọn sản phẩm --</option>
+                        @if (danhSachSanPham != null)
+                        {
+                            @foreach (var sp in danhSachSanPham)
+                            {<option value="@sp.Id">@sp.TenSanPham</option>}
+                        }
+                    </InputSelect>
+                </div>
+                <div class="col-md-3">
+                    <label>Số lượng</label>
+                    <InputNumber class="form-control" @bind-Value="dongChiTietMoi.SoLuongXuat" />
+                </div>
+                <div class="col-md-3">
+                    <label>Đơn giá</label>
+                    <InputNumber class="form-control" @bind-Value="dongChiTietMoi.DonGiaXuat" />
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-info w-100" @onclick="ThemDongChiTiet">Thêm</button>
+                </div>
+            </div>
+
+            <table class="table table-sm">
+                <thead><tr><th>Sản Phẩm</th><th>Số Lượng</th><th>Đơn Giá</th><th>Thành Tiền</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var item in chiTietPhieuXuat)
+                    {
+                        <tr>
+                            <td>@danhSachSanPham.FirstOrDefault(sp => sp.Id == item.SanPhamId)?.TenSanPham</td>
+                            <td>@item.SoLuongXuat</td>
+                            <td>@item.DonGiaXuat.ToString("N0")</td>
+                            <td>@((item.SoLuongXuat * item.DonGiaXuat).ToString("N0"))</td>
+                            <td><button type="button" class="btn btn-sm btn-danger" @onclick="() => XoaDongChiTiet(item)">Xóa</button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <button type="submit" class="btn btn-success">Lưu Phiếu Xuất</button>
+        <button type="button" class="btn btn-secondary" @onclick="HuyBo">Hủy</button>
+    </div>
+</EditForm>
+
+
+@code {
+    private XuatKho phieuXuatMoi = new();
+    private XuatKhoRawData dongChiTietMoi = new();
+    private List<XuatKhoRawData> chiTietPhieuXuat = new();
+
+    private List<Kho>? danhSachKho;
+    private List<SanPham>? danhSachSanPham;
+
+    protected override async Task OnInitializedAsync()
+    {
+        danhSachKho = await DbContext.Khos.ToListAsync();
+        danhSachSanPham = await DbContext.SanPhams.ToListAsync();
+    }
+
+    private void ThemDongChiTiet()
+    {
+        if (dongChiTietMoi.SanPhamId == 0 || dongChiTietMoi.SoLuongXuat <= 0)
+        {
+            JSRuntime.InvokeVoidAsync("alert", "Vui lòng chọn sản phẩm và nhập số lượng lớn hơn 0.");
+            return;
+        }
+        chiTietPhieuXuat.Add(dongChiTietMoi);
+        dongChiTietMoi = new(); // Reset form thêm dòng
+    }
+
+    private void XoaDongChiTiet(XuatKhoRawData item)
+    {
+        chiTietPhieuXuat.Remove(item);
+    }
+
+    private async Task LuuPhieuXuat()
+    {
+        // Kiểm tra ràng buộc
+        var daTonTai = await DbContext.XuatKhos.AnyAsync(p => p.SoPhieuXuatKho == phieuXuatMoi.SoPhieuXuatKho);
+        if (daTonTai)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Lỗi: Số phiếu xuất đã tồn tại!");
+            return;
+        }
+        if (chiTietPhieuXuat.Count == 0)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Lỗi: Phiếu xuất phải có ít nhất một sản phẩm!");
+            return;
+        }
+
+        phieuXuatMoi.ChiTietPhieuXuat = chiTietPhieuXuat;
+
+        DbContext.XuatKhos.Add(phieuXuatMoi);
+        await DbContext.SaveChangesAsync();
+
+        NavigationManager.NavigateTo("/phieu-xuat");
+    }
+
+    private void HuyBo()
+    {
+        NavigationManager.NavigateTo("/phieu-xuat");
+    }
+}

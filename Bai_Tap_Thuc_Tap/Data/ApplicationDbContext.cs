@@ -22,6 +22,8 @@ namespace Bai_Tap_Thuc_Tap.Data
         public DbSet<KhoUser> KhoUsers { get; set; }
         public DbSet<NhapKho> NhapKhos { get; set; }
         public DbSet<NhapKhoRawData> NhapKhoRawDatas { get; set; }
+        public DbSet<XuatKho> XuatKhos { get; set; }
+        public DbSet<XuatKhoRawData> XuatKhoRawDatas { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Định nghĩa cặp khóa chính cho bảng KhoUser

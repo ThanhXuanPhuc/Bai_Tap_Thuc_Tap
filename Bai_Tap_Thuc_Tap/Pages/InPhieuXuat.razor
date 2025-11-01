@@ -1,0 +1,293 @@
+﻿@page "/in-phieu-xuat/{Id:int}"
+@layout PrintLayout
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject IJSRuntime JSRuntime
+
+<style>
+    /* CSS được tối ưu hóa để khớp với mẫu Phiếu Xuất Kho */
+    body {
+        font-family: 'Times New Roman', Times, serif;
+        font-size: 12pt;
+        margin: 0;
+        padding: 20px;
+        background-color: #fff;
+    }
+
+    .print-container {
+        width: 100%;
+        max-width: 8.5in;
+        margin: auto;
+    }
+
+    p {
+        margin: 5px 0;
+    }
+
+    .header-main {
+        text-align: center;
+        margin: 15px 0;
+    }
+
+    .title {
+        font-size: 24pt;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .section-header {
+        font-weight: bold;
+        font-size: 13pt;
+        margin-top: 15px;
+    }
+
+    .info-list {
+        list-style-type: none;
+        padding-left: 20px;
+    }
+
+        .info-list li {
+            margin-bottom: 5px;
+        }
+
+    .product-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+        .product-table th, .product-table td {
+            border: 1px solid black;
+            padding: 6px;
+            vertical-align: middle;
+            font-size: 11pt;
+        }
+
+        .product-table thead {
+            font-weight: bold;
+            text-align: center;
+            background-color: #f0f0f0;
+        }
+
+    .conclusion-section {
+        margin-top: 10px;
+    }
+
+    /* === SỬA LỖI Ở ĐÂY === */
+    /* Xóa .conclusion-section ở đầu để áp dụng style trực tiếp */
+    .description-box {
+        border: 1px solid #000;
+        height: 80px;
+        padding: 5px;
+    }
+    /* === KẾT THÚC SỬA LỖI === */
+
+    .footer-signatures {
+        margin-top: 30px;
+        display: flex;
+        justify-content: space-around;
+        text-align: center;
+        font-weight: bold;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .text-right {
+        text-align: right;
+    }
+
+    .font-weight-bold {
+        font-weight: bold;
+    }
+
+    @@media print {
+        body {
+            padding: 0;
+        }
+    }
+</style>
+@if (phieuXuat == null)
+{
+    <p><em>Đang tải dữ liệu để in...</em></p>
+}
+else
+{
+<div class="print-container">
+    <div class="header-main">
+        <h1 class="title">PHIẾU XUẤT KHO</h1>
+        <p><em>Ngày @phieuXuat.NgayXuatKho.Day tháng @phieuXuat.NgayXuatKho.Month năm @phieuXuat.NgayXuatKho.Year</em></p>
+        <p>Số: @phieuXuat.SoPhieuXuatKho</p>
+    </div>
+
+    <div class="section-header">I. Thông tin chung</div>
+    <ul class="info-list">
+        <li>1. Lệnh giao hàng: .............................</li>
+        <li>2. Cửa hàng: .............................</li>
+        <li><strong>3. Kho: @phieuXuat.Kho?.TenKho</strong></li>
+        <li>4. Ghi chú: @phieuXuat.GhiChu</li>
+    </ul>
+
+    <div class="section-header">II. Thông tin hàng</div>
+    <table class="product-table">
+        <thead>
+            <tr>
+                <th>STT</th>
+                <th>Mã Hàng</th>
+                <th>Tên Hàng</th>
+                <th>PO</th>
+                <th>Số Chỉ Lệnh</th>
+                <th>SL</th>
+                <th>ĐVT</th>
+                <th>Kiểm Kê</th>
+                <th>Ghi Chú</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (int i = 0; i < phieuXuat.ChiTietPhieuXuat.Count; i++)
+            {
+                var item = phieuXuat.ChiTietPhieuXuat.ElementAt(i);
+                <tr>
+                    <td class="text-center">@(i + 1)</td>
+                    <td>@item.SanPham?.MaSanPham</td>
+                    <td>@item.SanPham?.TenSanPham</td>
+                    <td></td>
+                    <td></td>
+                    <td class="text-center">@item.SoLuongXuat.ToString("N0")</td>
+                    <td class="text-center">@item.SanPham?.DonViTinh?.TenDonViTinh</td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="section-header conclusion-section">III. Kết luận</div>
+    @{ var tongSoLuong = phieuXuat.ChiTietPhieuXuat.Sum(i => i.SoLuongXuat); }
+    <ul class="info-list">
+        <li>1. Tổng số lượng xuất (viết bằng số): @tongSoLuong.ToString("N0")</li>
+        <li>2. Tổng số lượng xuất (viết bằng chữ): @SoSangChu(tongSoLuong)</li>
+        <li>3. Mô tả khác biệt:</li>
+    </ul>
+
+    <div class="description-box">
+        &nbsp;
+    </div>
+
+    <div class="footer-signatures">
+        <span>Người lập phiếu</span>
+        <span>Người nhận hàng</span>
+        <span>Điều phối</span>
+        <span>Giám đốc</span>
+    </div>
+</div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private XuatKho? phieuXuat;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Tải phiếu xuất và tất cả dữ liệu liên quan
+        phieuXuat = await DbContext.XuatKhos
+            .Include(p => p.Kho)
+            .Include(p => p.ChiTietPhieuXuat)
+                .ThenInclude(d => d.SanPham)
+                    .ThenInclude(sp => sp.DonViTinh)
+            .FirstOrDefaultAsync(p => p.Id == Id);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Tự động mở hộp thoại in sau khi trang render
+        if (firstRender && phieuXuat != null)
+        {
+            await JSRuntime.InvokeVoidAsync("window.print");
+        }
+    }
+
+    #region Hàm Chuyển Số Lượng Thành Chữ
+    // Hàm này tương tự hàm ở Bài 10, nhưng đã được chỉnh sửa
+    private string SoSangChu(decimal so)
+    {
+        try
+        {
+            long number = (long)Math.Abs(so);
+            if (number == 0) return "Không";
+
+            string[] soChu = { "không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín" };
+            string[] hang = { "", "nghìn", "triệu", "tỷ" };
+            string result = "";
+
+            int i = 0;
+            while (number > 0)
+            {
+                string group = "";
+                int soNhom = (int)(number % 1000);
+                number /= 1000;
+
+                if (soNhom > 0)
+                {
+                    int tram = soNhom / 100;
+                    int chuc = (soNhom % 100) / 10;
+                    int donvi = soNhom % 10;
+
+                    group = soChu[tram] + " trăm";
+
+                    if (chuc > 1)
+                    {
+                        group += " " + soChu[chuc] + " mươi";
+                    }
+                    else if (chuc == 1)
+                    {
+                        group += " mười";
+                    }
+                    else if (chuc == 0 && donvi > 0 && tram > 0)
+                    {
+                        group += " linh";
+                    }
+
+                    if (donvi > 0)
+                    {
+                        if (donvi == 1 && chuc > 1)
+                        {
+                            group += " mốt";
+                        }
+                        else if (donvi == 5 && chuc > 0)
+                        {
+                            group += " lăm";
+                        }
+                        else
+                        {
+                            group += " " + soChu[donvi];
+                        }
+                    }
+
+                    if (group.StartsWith("không trăm "))
+                    {
+                        group = group.Substring(11);
+                    }
+
+                    result = group.Trim() + " " + hang[i] + " " + result;
+                }
+                i++;
+            }
+
+            result = result.Trim();
+            if (string.IsNullOrEmpty(result)) return "Không";
+
+            return char.ToUpper(result[0]) + result.Substring(1);
+        }
+        catch
+        {
+            return "Lỗi đọc số";
+        }
+    }
+    #endregion
+}

@@ -1,0 +1,213 @@
+﻿@page "/chi-tiet-phieu-xuat/{Id:int}"
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3>Hiệu Chỉnh Chi Tiết Phiếu Xuất</h3>
+
+@if (phieuXuat == null)
+{
+    <p><em>Đang tải dữ liệu...</em></p>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-header">Thông Tin Phiếu Xuất</div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4"><strong>Số phiếu:</strong> @phieuXuat.SoPhieuXuatKho</div>
+                <div class="col-md-4"><strong>Ngày xuất:</strong> @phieuXuat.NgayXuatKho.ToString("dd/MM/yyyy")</div>
+                <div class="col-md-4"><strong>Kho:</strong> @phieuXuat.Kho?.TenKho</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">Chi Tiết Sản Phẩm</div>
+        <div class="card-body">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Sản Phẩm</th>
+                        <th>Số Lượng</th>
+                        <th>Đơn Giá</th>
+                        <th>Thành Tiền</th>
+                        <th style="width: 150px;">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in chiTietPhieuXuat)
+                    {
+                        <tr>
+                            <td>@(danhSachSanPham?.FirstOrDefault(sp => sp.Id == item.SanPhamId)?.TenSanPham)</td>
+                            <td class_text-right>@item.SoLuongXuat.ToString("N0")</td>
+                            <td class_text-right>@item.DonGiaXuat.ToString("N0")</td>
+                            <td class_text-right>@((item.SoLuongXuat * item.DonGiaXuat).ToString("N0"))</td>
+                            <td>
+                                <button class="btn btn-sm btn-warning" @onclick="() => ChuanBiSua(item)">Sửa</button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => XoaDongChiTiet(item)">Xóa</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="table-info">
+                        <td>
+                            <select class="form-control form-control-sm" @bind="dongChiTietMoi.SanPhamId" disabled="@isEditingDetail">
+                                <option value="0">-- Chọn sản phẩm --</option>
+                                @if (danhSachSanPham != null)
+                                {
+                                    @foreach (var sp in danhSachSanPham)
+                                    {
+                                        <option value="@sp.Id">@sp.TenSanPham</option>
+}
+                                }
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" step="any" class="form-control form-control-sm" @bind="dongChiTietMoi.SoLuongXuat" />
+                        </td>
+                        <td>
+                            <input type="number" step="any" class="form-control form-control-sm" @bind="dongChiTietMoi.DonGiaXuat" />
+                        </td>
+                        <td></td>
+                        <td>
+                            @if (isEditingDetail)
+                            {
+                                <button class="btn btn-sm btn-success" @onclick="CapNhatDongChiTiet">Lưu</button>
+                                <button class="btn btn-sm btn-secondary" @onclick="HuySua">Hủy</button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-primary" @onclick="ThemDongChiTiet">Thêm</button>
+                            }
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <button type="button" class="btn btn-success" @onclick="LuuThayDoiVaoDb">Lưu Tất Cả Thay Đổi</button>
+        <button type="button" class="btn btn-secondary" @onclick="QuayLai">Quay Lại</button>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private XuatKho? phieuXuat;
+    private List<XuatKhoRawData> chiTietPhieuXuat = new();
+    private XuatKhoRawData dongChiTietMoi = new();
+
+    private List<SanPham>? danhSachSanPham;
+    private bool isEditingDetail = false;
+    private int editingItemId = 0; // Dùng để lưu Id của dòng đang sửa
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Tải thông tin phiếu xuất và các chi tiết liên quan
+        phieuXuat = await DbContext.XuatKhos
+            .Include(p => p.Kho)
+            .FirstOrDefaultAsync(p => p.Id == Id);
+
+        if (phieuXuat != null)
+        {
+            // Tải danh sách chi tiết
+            chiTietPhieuXuat = await DbContext.XuatKhoRawDatas
+                .Where(d => d.XuatKhoId == Id)
+                .ToListAsync();
+        }
+
+        // Tải danh sách sản phẩm cho dropdown
+        danhSachSanPham = await DbContext.SanPhams.OrderBy(s => s.TenSanPham).ToListAsync();
+    }
+
+    private void ThemDongChiTiet()
+    {
+        if (dongChiTietMoi.SanPhamId == 0 || dongChiTietMoi.SoLuongXuat <= 0)
+        {
+            JSRuntime.InvokeVoidAsync("alert", "Vui lòng chọn sản phẩm và nhập số lượng, đơn giá hợp lệ.");
+            return;
+        }
+
+        // Gán một Id tạm thời để Blazor có thể theo dõi
+        dongChiTietMoi.Id = chiTietPhieuXuat.Count > 0 ? chiTietPhieuXuat.Min(x => x.Id) - 1 : -1;
+
+        chiTietPhieuXuat.Add(dongChiTietMoi);
+        dongChiTietMoi = new();
+    }
+
+    private void ChuanBiSua(XuatKhoRawData item)
+    {
+        // Tải dữ liệu của dòng cần sửa vào form tfoot
+        dongChiTietMoi = new XuatKhoRawData
+        {
+            SanPhamId = item.SanPhamId, // Mã sản phẩm sẽ bị disable
+            SoLuongXuat = item.SoLuongXuat,
+            DonGiaXuat = item.DonGiaXuat
+        };
+        isEditingDetail = true;
+        editingItemId = item.Id; // Lưu Id của dòng đang sửa
+    }
+
+    private void CapNhatDongChiTiet()
+    {
+        var itemToUpdate = chiTietPhieuXuat.FirstOrDefault(x => x.Id == editingItemId);
+        if (itemToUpdate != null)
+        {
+            // Chỉ cập nhật Sô lượng và Đơn giá theo yêu cầu
+            itemToUpdate.SoLuongXuat = dongChiTietMoi.SoLuongXuat;
+            itemToUpdate.DonGiaXuat = dongChiTietMoi.DonGiaXuat;
+        }
+        HuySua();
+    }
+
+    private void HuySua()
+    {
+        dongChiTietMoi = new();
+        isEditingDetail = false;
+        editingItemId = 0;
+    }
+
+    private void XoaDongChiTiet(XuatKhoRawData item)
+    {
+        chiTietPhieuXuat.Remove(item);
+    }
+
+    private async Task LuuThayDoiVaoDb()
+    {
+        // Chiến lược: Xóa tất cả chi tiết cũ và thêm lại danh sách mới
+
+        // 1. Xóa tất cả chi tiết cũ của phiếu xuất này trong DB
+        var oldDetails = await DbContext.XuatKhoRawDatas.Where(d => d.XuatKhoId == Id).ToListAsync();
+        DbContext.XuatKhoRawDatas.RemoveRange(oldDetails);
+
+        // 2. Thêm lại các chi tiết mới từ danh sách trong bộ nhớ (chiTietPhieuXuat)
+        foreach (var item in chiTietPhieuXuat)
+        {
+            DbContext.XuatKhoRawDatas.Add(new XuatKhoRawData
+            {
+                XuatKhoId = Id,
+                SanPhamId = item.SanPhamId,
+                SoLuongXuat = item.SoLuongXuat,
+                DonGiaXuat = item.DonGiaXuat
+            });
+        }
+
+        // 3. Lưu tất cả thay đổi
+        await DbContext.SaveChangesAsync();
+        await JSRuntime.InvokeVoidAsync("alert", "Cập nhật chi tiết phiếu xuất thành công!");
+        QuayLai();
+    }
+
+    private void QuayLai()
+    {
+        NavigationManager.NavigateTo("/phieu-xuat");
+    }
+}

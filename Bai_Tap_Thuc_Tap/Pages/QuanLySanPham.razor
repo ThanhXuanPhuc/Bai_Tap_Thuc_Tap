@@ -133,10 +133,8 @@ else
         await TaiDuLieuCanThiet();
     }
 
-    // SỬA LẠI HÀM NÀY
     private async Task TaiDuLieuCanThiet()
     {
-        // Tải tuần tự thay vì song song
         await TaiDanhSachLoaiSanPham();
         await TaiDanhSachDonViTinh();
         await TaiDanhSachSanPham();
@@ -161,7 +159,6 @@ else
         danhSachDVT = await DbContext.DonViTinhs.OrderBy(p => p.TenDonViTinh).ToListAsync();
     }
 
-    // --- Các hàm còn lại giữ nguyên, không cần thay đổi ---
     private void ShowAddModal()
     {
         spHienTai = new SanPham();

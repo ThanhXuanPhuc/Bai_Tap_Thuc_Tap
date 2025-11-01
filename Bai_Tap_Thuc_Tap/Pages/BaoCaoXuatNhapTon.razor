@@ -1,0 +1,188 @@
+﻿@page "/bao-cao-xuat-nhap-ton"
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+
+<h3>Báo Cáo Xuất - Nhập - Tồn</h3>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <label>Từ ngày:</label>
+                <input type="date" class="form-control" @bind="tuNgay" />
+            </div>
+            <div class="col-md-4">
+                <label>Đến ngày:</label>
+                <input type="date" class="form-control" @bind="denNgay" />
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100" @onclick="TimKiem" disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    }
+                    else
+                    {
+                        <span>Tìm Kiếm</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        @if (ketQuaBaoCao == null)
+        {
+            <p><em>Vui lòng chọn ngày và nhấn "Tìm Kiếm" để xem báo cáo.</em></p>
+        }
+        else if (ketQuaBaoCao.Count == 0)
+        {
+            <p><em>Không tìm thấy dữ liệu nào phù hợp.</em></p>
+        }
+        else
+        {
+            <table class="table table-bordered table-sm table-hover">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Mã Sản Phẩm</th>
+                        <th>Tên Sản Phẩm</th>
+                        <th>SL Đầu Kỳ</th>
+                        <th>SL Nhập</th>
+                        <th>SL Xuất</th>
+                        <th>SL Cuối Kỳ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in ketQuaBaoCao)
+                    {
+                        <tr>
+                            <td>@item.MaSanPham</td>
+                            <td>@item.TenSanPham</td>
+                            <td class="text-right">@item.SLDauKy.ToString("N0")</td>
+                            <td class="text-right">@item.SLNhap.ToString("N0")</td>
+                            <td class="text-right">@item.SLXuat.ToString("N0")</td>
+                            <td class="text-right font-weight-bold">@item.SLCuoiKy.ToString("N0")</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="font-weight-bold table-active">
+                        <td colspan="2" class="text-right">Tổng Cộng:</td>
+                        <td class="text-right">@ketQuaBaoCao.Sum(x => x.SLDauKy).ToString("N0")</td>
+                        <td class="text-right">@ketQuaBaoCao.Sum(x => x.SLNhap).ToString("N0")</td>
+                        <td class="text-right">@ketQuaBaoCao.Sum(x => x.SLXuat).ToString("N0")</td>
+                        <td class="text-right">@ketQuaBaoCao.Sum(x => x.SLCuoiKy).ToString("N0")</td>
+                    </tr>
+                </tfoot>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+    // 1. CLASS HELPER ĐỂ CHỨA KẾT QUẢ
+    public class XuatNhapTonViewModel
+    {
+        public string MaSanPham { get; set; }
+        public string TenSanPham { get; set; }
+        public decimal SLDauKy { get; set; }
+        public decimal SLNhap { get; set; }
+        public decimal SLXuat { get; set; }
+        public decimal SLCuoiKy { get; set; }
+    }
+
+    // 2. CÁC BIẾN CHO TRANG
+    private DateTime tuNgay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+    private DateTime denNgay = DateTime.Now.Date;
+    private bool isLoading = false;
+    private List<XuatNhapTonViewModel>? ketQuaBaoCao;
+
+    // 3. HÀM TÌM KIẾM CHÍNH (ĐÃ SỬA LỖI)
+    private async Task TimKiem()
+    {
+        isLoading = true;
+        ketQuaBaoCao = null;
+
+        var tuNgayDate = tuNgay.Date;
+        var denNgayDate = denNgay.Date;
+
+        // 1. Lấy tất cả sản phẩm làm danh sách gốc
+        var products = await DbContext.SanPhams
+            .OrderBy(p => p.MaSanPham)
+            .ToListAsync();
+
+        // 2. Lấy dữ liệu thô của Nhập kho và tính toán trên máy chủ (client evaluation)
+        var allNhap = await DbContext.NhapKhoRawDatas
+            .Include(d => d.NhapKho) // Chỉ cần Include để lấy ngày
+            .Select(d => new
+            { // Chỉ lấy các cột cần thiết
+            d.SanPhamId,
+                d.NhapKho.NgayNhapKho,
+                d.SoLuongNhap
+            })
+            .ToListAsync(); // <-- Kéo dữ liệu về máy chủ tại đây
+
+        // Bây giờ thực hiện GroupBy và Sum trong bộ nhớ
+        var nhapData = allNhap
+            .GroupBy(d => d.SanPhamId)
+            .Select(g => new
+            {
+                SanPhamId = g.Key,
+                NhapDauKy = g.Where(d => d.NgayNhapKho < tuNgayDate).Sum(d => d.SoLuongNhap),
+                NhapTrongKy = g.Where(d => d.NgayNhapKho >= tuNgayDate && d.NgayNhapKho <= denNgayDate).Sum(d => d.SoLuongNhap)
+            })
+            .ToList(); // Dùng .ToList() vì đang ở trong bộ nhớ
+
+        // 3. Lấy dữ liệu thô của Xuất kho và tính toán trên máy chủ
+        var allXuat = await DbContext.XuatKhoRawDatas
+            .Include(d => d.XuatKho)
+            .Select(d => new
+            {
+                d.SanPhamId,
+                d.XuatKho.NgayXuatKho,
+                d.SoLuongXuat
+            })
+            .ToListAsync(); // <-- Kéo dữ liệu về máy chủ tại đây
+
+        // Bây giờ thực hiện GroupBy và Sum trong bộ nhớ
+        var xuatData = allXuat
+            .GroupBy(d => d.SanPhamId)
+            .Select(g => new
+            {
+                SanPhamId = g.Key,
+                XuatDauKy = g.Where(d => d.NgayXuatKho < tuNgayDate).Sum(d => d.SoLuongXuat),
+                XuatTrongKy = g.Where(d => d.NgayXuatKho >= tuNgayDate && d.NgayXuatKho <= denNgayDate).Sum(d => d.SoLuongXuat)
+            })
+            .ToList();
+
+        // 4. Tổng hợp dữ liệu (giữ nguyên)
+        var report = new List<XuatNhapTonViewModel>();
+        foreach (var sp in products)
+        {
+            var nhap = nhapData.FirstOrDefault(n => n.SanPhamId == sp.Id);
+            var xuat = xuatData.FirstOrDefault(x => x.SanPhamId == sp.Id);
+
+            var vm = new XuatNhapTonViewModel
+            {
+                MaSanPham = sp.MaSanPham,
+                TenSanPham = sp.TenSanPham,
+                SLDauKy = (nhap?.NhapDauKy ?? 0) - (xuat?.XuatDauKy ?? 0),
+                SLNhap = nhap?.NhapTrongKy ?? 0,
+                SLXuat = xuat?.XuatTrongKy ?? 0
+            };
+            vm.SLCuoiKy = vm.SLDauKy + vm.SLNhap - vm.SLXuat;
+
+            if (vm.SLDauKy != 0 || vm.SLNhap != 0 || vm.SLXuat != 0 || vm.SLCuoiKy != 0)
+            {
+                report.Add(vm);
+            }
+        }
+
+        ketQuaBaoCao = report;
+        isLoading = false;
+    }
+}

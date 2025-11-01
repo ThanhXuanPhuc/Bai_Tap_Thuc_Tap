@@ -1,0 +1,99 @@
+﻿@page "/phieu-xuat"
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3>Quản Lý Phiếu Xuất Kho</h3>
+<hr />
+
+<button class="btn btn-primary mb-3" @onclick="ThemMoiPhieuXuat">
+    <i class="fas fa-plus"></i> Tạo Phiếu Xuất Mới
+</button>
+
+@if (danhSachPhieuXuat == null)
+{
+    <p><em>Đang tải dữ liệu...</em></p>
+}
+else
+{
+    <table class="table table-bordered table-hover">
+        <thead class="thead-light">
+            <tr>
+                <th>Số Phiếu</th>
+                <th>Ngày Xuất</th>
+                <th>Kho Xuất</th>
+                <th>Ghi Chú</th>
+                <th style="width: 270px;">Thao Tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var px in danhSachPhieuXuat)
+            {
+                <tr>
+                    <td>@px.SoPhieuXuatKho</td>
+                    <td>@px.NgayXuatKho.ToString("dd/MM/yyyy")</td>
+                    <td>@px.Kho?.TenKho</td>
+                    <td>@px.GhiChu</td>
+                    <td>
+                        <button class="btn btn-sm btn-success" @onclick="() => InPhieu(px.Id)">In</button>
+                        <button class="btn btn-sm btn-info" @onclick="() => SuaChiTiet(px.Id)">Chi tiết</button>
+                        <button class="btn btn-sm btn-warning" @onclick="() => SuaPhieuXuat(px.Id)">Sửa</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => XoaPhieuXuat(px.Id)">Xóa</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<XuatKho>? danhSachPhieuXuat;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await TaiDanhSach();
+    }
+
+    private async Task TaiDanhSach()
+    {
+        danhSachPhieuXuat = await DbContext.XuatKhos
+            .Include(p => p.Kho)
+            .OrderByDescending(p => p.NgayXuatKho)
+            .ToListAsync();
+    }
+
+    private void ThemMoiPhieuXuat()
+    {
+        NavigationManager.NavigateTo("/them-phieu-xuat");
+    }
+    private void SuaPhieuXuat(int id)
+    {
+        NavigationManager.NavigateTo($"/sua-phieu-xuat/{id}");
+    }
+    private void SuaChiTiet(int id)
+    {
+        NavigationManager.NavigateTo($"/chi-tiet-phieu-xuat/{id}");
+    }
+    private async Task InPhieu(int id)
+    {
+        var url = $"/in-phieu-xuat/{id}";
+        await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+    }
+    private async Task XoaPhieuXuat(int id)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn xóa phiếu xuất này? Mọi chi tiết liên quan cũng sẽ bị xóa.");
+        if (confirmed)
+        {
+            var phieuToDelete = await DbContext.XuatKhos.FindAsync(id);
+            if (phieuToDelete != null)
+            {
+                DbContext.XuatKhos.Remove(phieuToDelete);
+                await DbContext.SaveChangesAsync();
+                await TaiDanhSach(); // Tải lại danh sách
+            }
+        }
+    }
+}

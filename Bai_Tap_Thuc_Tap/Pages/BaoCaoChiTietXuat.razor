@@ -1,0 +1,96 @@
+﻿@page "/bao-cao-chi-tiet-xuat"
+@using Bai_Tap_Thuc_Tap.Data
+@using Bai_Tap_Thuc_Tap.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+
+<h3>Báo Cáo Chi Tiết Hàng Xuất</h3>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <label>Từ ngày:</label>
+                @* Dùng <input> HTML chuẩn để tránh lỗi NullReference khi không có EditForm *@
+                <input type="date" class="form-control" @bind="tuNgay" />
+            </div>
+            <div class="col-md-4">
+                <label>Đến ngày:</label>
+                <input type="date" class="form-control" @bind="denNgay" />
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100" @onclick="TimKiem">Tìm Kiếm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        @if (ketQuaBaoCao == null)
+        {
+            <p><em>Vui lòng chọn ngày và nhấn "Tìm Kiếm" để xem báo cáo.</em></p>
+        }
+        else if (ketQuaBaoCao.Count == 0)
+        {
+            <p><em>Không tìm thấy dữ liệu nào phù hợp.</em></p>
+        }
+        else
+        {
+            <table class="table table-bordered table-sm table-hover">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Ngày Xuất</th>
+                        <th>Số Phiếu Xuất</th>
+                        <th>Mã Sản Phẩm</th>
+                        <th>Tên Sản Phẩm</th>
+                        <th>SL Xuất</th>
+                        <th>Đơn Giá</th>
+                        <th>Trị Giá</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in ketQuaBaoCao)
+                    {
+                        <tr>
+                            <td>@item.XuatKho?.NgayXuatKho.ToString("dd/MM/yyyy")</td>
+                            <td>@item.XuatKho?.SoPhieuXuatKho</td>
+                            <td>@item.SanPham?.MaSanPham</td>
+                            <td>@item.SanPham?.TenSanPham</td>
+                            <td class="text-right">@item.SoLuongXuat.ToString("N0")</td>
+                            <td class="text-right">@item.DonGiaXuat.ToString("N0")</td>
+                            <td class="text-right">@((item.SoLuongXuat * item.DonGiaXuat).ToString("N0"))</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="font-weight-bold">
+                        <td colspan="4" class="text-right">Tổng Cộng:</td>
+                        <td class="text-right">@ketQuaBaoCao.Sum(x => x.SoLuongXuat).ToString("N0")</td>
+                        <td></td>
+                        <td class="text-right">@ketQuaBaoCao.Sum(x => x.SoLuongXuat * x.DonGiaXuat).ToString("N0")</td>
+                    </tr>
+                </tfoot>
+            </table>
+        }
+    </div>
+</div>
+
+
+@code {
+    private DateTime tuNgay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+    private DateTime denNgay = DateTime.Now.Date;
+
+    // Bắt đầu truy vấn từ bảng Chi Tiết (XuatKhoRawData)
+    private List<XuatKhoRawData>? ketQuaBaoCao;
+
+    private async Task TimKiem()
+    {
+        ketQuaBaoCao = await DbContext.XuatKhoRawDatas
+            .Include(d => d.XuatKho) // Nối sang bảng Master (Phiếu Xuất)
+            .Include(d => d.SanPham) // Nối sang bảng Sản Phẩm
+            .Where(d => d.XuatKho.NgayXuatKho >= tuNgay.Date && d.XuatKho.NgayXuatKho <= denNgay.Date) // Lọc theo ngày
+            .OrderBy(d => d.XuatKho.NgayXuatKho) // Sắp xếp
+            .ToListAsync();
+    }
+}
