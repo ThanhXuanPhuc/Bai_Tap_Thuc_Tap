@@ -124,9 +124,8 @@
                 d.NhapKho.NgayNhapKho,
                 d.SoLuongNhap
             })
-            .ToListAsync(); // <-- Kéo dữ liệu về máy chủ tại đây
+            .ToListAsync(); 
 
-        // Bây giờ thực hiện GroupBy và Sum trong bộ nhớ
         var nhapData = allNhap
             .GroupBy(d => d.SanPhamId)
             .Select(g => new
