@@ -82,19 +82,16 @@
     private DateTime tuNgay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
     private DateTime denNgay = DateTime.Now.Date;
 
-    // Danh sách kết quả sẽ bắt đầu từ bảng Chi Tiết (NhapKhoRawData)
     private List<NhapKhoRawData>? ketQuaBaoCao;
 
-    // Hàm này sẽ được gọi khi nhấn nút "Tìm Kiếm"
     private async Task TimKiem()
     {
-        // Đây là câu truy vấn LINQ để lấy dữ liệu
         ketQuaBaoCao = await DbContext.NhapKhoRawDatas
-            .Include(d => d.NhapKho) // Nối sang bảng Master (Phiếu Nhập)
-                .ThenInclude(m => m.NhaCungCap) // Từ Master, nối sang bảng NCC
-            .Include(d => d.SanPham) // Nối sang bảng Sản Phẩm
-            .Where(d => d.NhapKho.NgayNhapKho >= tuNgay.Date && d.NhapKho.NgayNhapKho <= denNgay.Date) // Lọc theo ngày
-            .OrderBy(d => d.NhapKho.NgayNhapKho) // Sắp xếp theo ngày
+            .Include(d => d.NhapKho) 
+                .ThenInclude(m => m.NhaCungCap) 
+            .Include(d => d.SanPham) 
+            .Where(d => d.NhapKho.NgayNhapKho >= tuNgay.Date && d.NhapKho.NgayNhapKho <= denNgay.Date)
+            .OrderBy(d => d.NhapKho.NgayNhapKho) 
             .ToListAsync();
     }
 }

@@ -26,7 +26,6 @@ namespace Bai_Tap_Thuc_Tap.Data.Models
         [Column("Don_Gia_Nhap")]
         public decimal DonGiaNhap { get; set; }
 
-        // Navigation Properties
         [ForeignKey("NhapKhoId")]
         public virtual NhapKho? NhapKho { get; set; }
 

@@ -7,7 +7,6 @@
 @inject IJSRuntime JSRuntime
 
 <style>
-    /* CSS được tối ưu hóa để khớp với mẫu in */
     body {
         font-family: 'Times New Roman', Times, serif;
         font-size: 12pt;
@@ -18,7 +17,7 @@
 
     .print-container {
         width: 100%;
-        max-width: 8.5in; /* Kích thước khổ A4 chiều rộng */
+        max-width: 8.5in; 
         margin: auto;
     }
 
@@ -98,7 +97,6 @@
             font-style: italic;
         }
 
-    /* Media query để ẩn các phần không cần thiết khi in */
     @@media print {
         body {
             padding: 0;
@@ -298,7 +296,6 @@ else
                         }
                     }
 
-                    // Xóa "không trăm" ở đầu nếu không cần thiết
                     if (group.StartsWith("không trăm "))
                     {
                         group = group.Substring(11);

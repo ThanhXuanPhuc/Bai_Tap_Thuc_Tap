@@ -10,7 +10,7 @@ namespace Bai_Tap_Thuc_Tap.Data.Models
     [Table("tbl_DM_Don_Vi_Tinh")]
     public class DonViTinh
     {
-        [Key] // Đánh dấu đây là Khóa chính
+        [Key] //  Khóa chính
         [Column("Auto_ID")]
         public int Id { get; set; }
 

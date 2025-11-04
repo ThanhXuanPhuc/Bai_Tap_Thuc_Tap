@@ -30,12 +30,12 @@ namespace Bai_Tap_Thuc_Tap.Data
             modelBuilder.Entity<KhoUser>()
                 .HasKey(ku => new { ku.MaDangNhap, ku.KhoId });
 
-            // Cấu hình mối quan hệ (tùy chọn nhưng nên có)
+            // Cấu hình mối quan hệ 
             modelBuilder.Entity<KhoUser>()
                 .HasOne(ku => ku.User)
                 .WithMany()
                 .HasForeignKey(ku => ku.MaDangNhap)
-                .HasPrincipalKey(u => u.MaDangNhap); // Quan trọng: Nối qua MaDangNhap thay vì Id
+                .HasPrincipalKey(u => u.MaDangNhap); 
 
             modelBuilder.Entity<KhoUser>()
                 .HasOne(ku => ku.Kho)

@@ -15,7 +15,6 @@ namespace Bai_Tap_Thuc_Tap.Data.Models
         [Column("Kho_ID")]
         public int KhoId { get; set; }
 
-        // Navigation properties
         public virtual User User { get; set; }
         public virtual Kho Kho { get; set; }
     }

@@ -101,7 +101,7 @@
     private bool isLoading = false;
     private List<XuatNhapTonViewModel>? ketQuaBaoCao;
 
-    // 3. HÀM TÌM KIẾM CHÍNH (ĐÃ SỬA LỖI)
+    // 3. HÀM TÌM KIẾM CHÍNH 
     private async Task TimKiem()
     {
         isLoading = true;
@@ -115,11 +115,11 @@
             .OrderBy(p => p.MaSanPham)
             .ToListAsync();
 
-        // 2. Lấy dữ liệu thô của Nhập kho và tính toán trên máy chủ (client evaluation)
+        // 2. Lấy dữ liệu thô của Nhập kho và tính toán trên máy chủ 
         var allNhap = await DbContext.NhapKhoRawDatas
-            .Include(d => d.NhapKho) // Chỉ cần Include để lấy ngày
+            .Include(d => d.NhapKho) 
             .Select(d => new
-            { // Chỉ lấy các cột cần thiết
+            { 
             d.SanPhamId,
                 d.NhapKho.NgayNhapKho,
                 d.SoLuongNhap
@@ -134,7 +134,7 @@
                 NhapDauKy = g.Where(d => d.NgayNhapKho < tuNgayDate).Sum(d => d.SoLuongNhap),
                 NhapTrongKy = g.Where(d => d.NgayNhapKho >= tuNgayDate && d.NgayNhapKho <= denNgayDate).Sum(d => d.SoLuongNhap)
             })
-            .ToList(); // Dùng .ToList() vì đang ở trong bộ nhớ
+            .ToList(); 
 
         // 3. Lấy dữ liệu thô của Xuất kho và tính toán trên máy chủ
         var allXuat = await DbContext.XuatKhoRawDatas
@@ -145,9 +145,8 @@
                 d.XuatKho.NgayXuatKho,
                 d.SoLuongXuat
             })
-            .ToListAsync(); // <-- Kéo dữ liệu về máy chủ tại đây
+            .ToListAsync(); 
 
-        // Bây giờ thực hiện GroupBy và Sum trong bộ nhớ
         var xuatData = allXuat
             .GroupBy(d => d.SanPhamId)
             .Select(g => new

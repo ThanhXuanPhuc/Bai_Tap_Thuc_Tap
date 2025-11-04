@@ -39,7 +39,6 @@ namespace Bai_Tap_Thuc_Tap.Data.Models
         [Column("Ghi_Chu")]
         public string? GhiChu { get; set; }
 
-        // Navigation Properties
         [ForeignKey("KhoId")]
         public virtual Kho? Kho { get; set; }
 

@@ -38,8 +38,7 @@ namespace Bai_Tap_Thuc_Tap.Data.Models
         [Column("Ghi_Chu")]
         public string? GhiChu { get; set; }
 
-        // --- Navigation Properties ---
-        // Giúp Entity Framework tự động liên kết dữ liệu
+
         [ForeignKey("LoaiSanPhamId")]
         public virtual LoaiSanPham? LoaiSanPham { get; set; }
 
